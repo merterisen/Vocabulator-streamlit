@@ -92,7 +92,9 @@ with left_col:
             if st.button("Apply Threshold"):
                     st.session_state['output_df'] = st.session_state['output_df'][st.session_state['output_df']['count'] > threshold]
                     st.rerun()
-            
+
+
+         
 
 with right_col:
     with st.container():
@@ -119,4 +121,20 @@ with right_col:
                 st.session_state['output_df'].to_excel(buffer, index=False)
                 st.download_button(label="Export Excel", data=buffer.getvalue(), file_name="vocabulator_export.xlsx", mime="application/vnd.ms-excel")
         else:
-            st.info("No data to display. Run NLP to generate data.")
+            st.title("Welcome to Vocabulator")
+            st.caption("Open-source vocabulary extraction you can inspect, trust, and improve.")
+
+            st.markdown(
+                """
+            Vocabulator turns PDFs into focused vocabulary lists for faster learning, with a transparent workflow built for educators, learners, and builders.
+
+            - Extract words from your PDF files
+            - Add AI translations and example sentences in your target language
+            - Edit and export your final list in seconds
+            - Built as an open-source project you can audit and contribute
+            """
+            )
+
+            col1, col2 = st.columns(2)
+            col1.metric("License", "Open Source")
+            col2.metric("Export to", "CSV / Excel / Anki")
