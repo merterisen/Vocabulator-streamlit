@@ -120,7 +120,7 @@ class NLPManager:
         output_df = pd.DataFrame(output_data)
         
         if not output_df.empty:
-            output_df = output_df.sort_values(by='count', ascending=False)
+            output_df = output_df.sort_values(by='count', ascending=False).reset_index(drop=True)
             
         return output_df
 

@@ -1,7 +1,6 @@
 # Central place for constants. s
 
 WINDOW_TITLE = "Vocabulator"
-WINDOW_SIZE = "650x700"
 
 # NLP Configuration
 LANGUAGES = {
