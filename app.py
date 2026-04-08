@@ -122,11 +122,10 @@ with right_col:
                 st.download_button(label="Export Excel", data=buffer.getvalue(), file_name="vocabulator_export.xlsx", mime="application/vnd.ms-excel")
         else:
             st.title("Welcome to Vocabulator")
-            st.caption("Open-source vocabulary extraction you can inspect, trust, and improve.")
 
             st.markdown(
                 """
-            Vocabulator turns PDFs into focused vocabulary lists for faster learning, with a transparent workflow built for educators, learners, and builders.
+            Vocabulator is an open-source word extraction tool that turns PDFs into focused vocabulary lists.
 
             - Extract words from your PDF files
             - Add AI translations and example sentences in your target language

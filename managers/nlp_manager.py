@@ -1,6 +1,7 @@
 import spacy
+from spacy.cli import download as spacy_download
 import pandas as pd
-import config 
+import config
 
 class NLPManager:
     """
@@ -27,7 +28,8 @@ class NLPManager:
         try:
             self.nlp = spacy.load(self.model_name, disable=["ner", "parser"])
         except OSError:
-            raise OSError(f"Model '{self.model_name}' not found. Please run: python -m spacy download {self.model_name}")
+            spacy_download(self.model_name)
+            self.nlp = spacy.load(self.model_name, disable=["ner", "parser"])
 
 
 
