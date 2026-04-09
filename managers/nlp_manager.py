@@ -100,7 +100,6 @@ class NLPManager:
                 article = article_map.get(values["gender"])
                 if article:
                     key = f"{article} {key}"
-            
 
             row = {
                 "word": key,

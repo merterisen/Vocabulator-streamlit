@@ -35,6 +35,9 @@ class FileManager:
         
         if extension in {"csv", "xls", "xlsx", "ods"}:
             return self._sheet_file_to_pdf(file_bytes, extension)
+
+        if extension == "epub":
+            return self._epub_file_to_pdf(file_bytes)
    
         # For image and other supported document formats, rely on PyMuPDF conversion.
         try:
@@ -43,9 +46,25 @@ class FileManager:
             return io.BytesIO(pdf_bytes)
         except Exception as exc:
             raise ValueError(
-                "File type not supported. Supported formats: PDF, TXT, MD, CSV, XLS, XLSX, ODS."
+                "File type not supported. Supported formats: PDF, EPUB, TXT, MD, CSV, XLS, XLSX, ODS."
             ) from exc
 
+
+
+    def _epub_file_to_pdf(self, file_bytes: bytes) -> io.BytesIO:
+        """
+        Converts EPUB files to PDF.
+        """
+        try:
+            with fitz.open(stream=file_bytes, filetype="epub") as epub_doc:
+                extracted_text = "\n\n".join(page.get_text() for page in epub_doc)
+        except Exception as exc:
+            raise ValueError("Could not read EPUB content.") from exc
+
+        if not extracted_text.strip():
+            raise ValueError("EPUB appears empty or text extraction failed.")
+
+        return self._text_file_to_pdf(extracted_text.encode("utf-8"))
 
 
     def _sheet_file_to_pdf(self, file_bytes: bytes, extension: str) -> io.BytesIO:
