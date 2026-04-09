@@ -33,29 +33,23 @@ class NLPManager:
 
 
 
-    def load_known_words(self, uploaded_file):
-            """
-            Loads an uploaded CSV/Excel file from Streamlit and returns a set of known words.
-            """
-            if not uploaded_file:
-                return set()
-                
-            if uploaded_file.name.endswith(('.xls', '.xlsx')):
-                df = pd.read_excel(uploaded_file)
-            else:
-                df = pd.read_csv(uploaded_file)
-            
-            target_col = df.columns[0]
-            known_words = set(df[target_col].astype(str).str.lower().str.strip())
-        
-            lemmatized_known_words = set()
+    def parse_known_words(self, known_words_texts: list[str]) -> set[str]:
+        """
+        Parses extracted known-word texts and returns lemmatized known words.
+        """
+        if self.nlp is None:
+            self.load_model()
 
-            for doc in self.nlp.pipe(list(known_words), batch_size=100):
-                for token in doc:
-                    if token.is_alpha:
-                        lemmatized_known_words.add(token.lemma_.lower())
-            
-            return lemmatized_known_words
+        if not known_words_texts:
+            return set()
+
+        lemmatized_known_words = set()
+        for doc in self.nlp.pipe(known_words_texts, batch_size=20):
+            for token in doc:
+                if token.is_alpha:
+                    lemmatized_known_words.add(token.lemma_.lower())
+
+        return lemmatized_known_words
 
 
 
@@ -79,17 +73,14 @@ class NLPManager:
             for token in doc:
                 if (token.is_alpha and not token.is_stop and len(token.lemma_) > 2 and token.pos_ in config.VALID_POS_TAGS):
                     lemma = token.lemma_.lower()
-                    
-                    # If word is known, skip loop.
-                    if lemma in known_words:
-                        continue
 
                     # words_data configuration
                     if lemma not in lemmatized_words_data:
                         lemmatized_words_data[lemma] = {
                             "count": 0,
                             "gender": None,
-                            "pos": token.pos_
+                            "pos": token.pos_,
+                            "is_known": lemma in known_words
                         }
 
                     lemmatized_words_data[lemma]["count"] += 1
@@ -114,7 +105,8 @@ class NLPManager:
             row = {
                 "word": key,
                 "count": values["count"],
-                "pos": values["pos"]
+                "pos": values["pos"],
+                "is_known": values["is_known"]
             }
 
             output_data.append(row)

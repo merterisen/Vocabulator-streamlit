@@ -1,11 +1,12 @@
 import streamlit as st
 import config
 from managers.nlp_manager import NLPManager
-from managers import pdf_manager
+from managers.file_manager import FileManager
 from managers.llm_manager import LLMManager
 import io
 
 st.set_page_config(page_title=config.WINDOW_TITLE, layout="wide")
+file_manager = FileManager()
 
 # State Management: To prevent the DataFrame from being lost when the page is refreshed
 if 'output_df' not in st.session_state:
@@ -23,30 +24,42 @@ with left_col:
         # NLP TAB
         # ==========================================
         with nlp_tab:
-            st.subheader("1. Select PDF")
-            uploaded_pdf = st.file_uploader("", type=["pdf"], label_visibility="collapsed")
+            st.subheader("1. Select File")
+            uploaded_file = st.file_uploader("Upload File", label_visibility="collapsed")
 
 
             st.subheader("2. Select Language")
-            language = st.selectbox("Language", list(config.LANGUAGES.keys()), label_visibility="collapsed")
+            language = st.selectbox("Language", list(config.LANGUAGES.keys()), index=8, label_visibility="collapsed")
             include_articles = st.checkbox("Include Articles")
 
 
             st.subheader("3. Select Known Words (Optional)")
-            uploaded_known_words = st.file_uploader("Upload Excel/CSV", type=["csv", "xlsx"], label_visibility="collapsed")
-
+            uploaded_known_words = st.file_uploader("Known Words", label_visibility="collapsed")
+            with st.expander("What are known words?"):
+                st.info(
+                    "Upload a file containing the words you already know. "
+                    "This helps the app eliminate those words when extracting vocabulary."
+                )
+           
 
             if st.button("RUN NLP", type="primary"):
-                if not uploaded_pdf:
-                    st.error("Please select a PDF file.")
+                if not uploaded_file:
+                    st.error("Please select a file.")
                 else:
+                    known_words = set()
                     with st.spinner("Processing NLP..."):
                         try:
                             nlp_manager = NLPManager(language)
                             nlp_manager.load_model()
-                            known_words = nlp_manager.load_known_words(uploaded_known_words) if uploaded_known_words else set()
 
-                            texts = pdf_manager.extract_texts_from_pdf(uploaded_pdf)
+                            known_words_texts = (
+                                file_manager.extract_texts_from_pdf(uploaded_known_words)
+                                if uploaded_known_words
+                                else []
+                            )
+                            known_words = nlp_manager.parse_known_words(known_words_texts)
+
+                            texts = file_manager.extract_texts_from_pdf(uploaded_file)
 
                             st.session_state['output_df'] = nlp_manager.extract_words(texts, known_words, include_articles=include_articles)
                             st.success("NLP Complete!")
@@ -58,7 +71,7 @@ with left_col:
         # ==========================================
         with llm_tab:
             st.subheader("1. Select LLM Model")
-            llm_model = st.selectbox("LLM Model", list(config.LLM_MODELS.keys()), label_visibility="collapsed")
+            llm_model = st.selectbox("LLM Model", list(config.LLM_MODELS.keys()), index=2, label_visibility="collapsed")
 
 
             st.subheader("2. Enter Translate Language")
@@ -90,25 +103,30 @@ with left_col:
         with editor_tab:
             threshold = st.number_input("Remove words with count <=", min_value=0, value=0)
             if st.button("Apply Threshold"):
-                    st.session_state['output_df'] = st.session_state['output_df'][st.session_state['output_df']['count'] > threshold]
-                    st.rerun()
+                    if st.session_state['output_df'] is None or st.session_state['output_df'].empty:
+                        st.warning("No words found. Please run NLP first.")
+                    else:
+                        st.session_state['output_df'] = st.session_state['output_df'][
+                            st.session_state['output_df']['count'] > threshold
+                        ]
+                        st.rerun()
 
 
-         
+
 
 with right_col:
     with st.container():
 
         if st.session_state['output_df'] is not None and not st.session_state['output_df'].empty:
             df = st.session_state['output_df']
-            st.write(f"Total words: {len(df)}")
-
+            
             st.session_state['output_df'] = st.data_editor(
                 df,
-                use_container_width=True,
                 key="preview_editor",
                 height=350
             )
+
+            st.write(f"Total words: {len(df)}")
 
             col1, col2 = st.columns([1, 1])
 
