@@ -8,11 +8,17 @@ import io
 st.set_page_config(page_title=config.WINDOW_TITLE, layout="wide")
 file_manager = FileManager()
 
-# State Management: persist dataframes across reruns
+# session_state dataframes
 if 'source_df' not in st.session_state:
     st.session_state['source_df'] = None
 if 'working_df' not in st.session_state:
     st.session_state['working_df'] = None
+
+# session_state variables
+if 'process_llm' not in st.session_state:
+    st.session_state['process_llm'] = False
+if 'show_llm_confirm' not in st.session_state:
+    st.session_state['show_llm_confirm'] = False
 
 st.title(config.WINDOW_TITLE)
 
@@ -25,6 +31,7 @@ with left_col:
     with st.container():
         nlp_tab, llm_tab, analyser_tab, settings_tab = st.tabs(["NLP", "LLM", "ANALYSER", "SETTINGS"])
 
+
         # ==========================================
         # NLP TAB
         # ==========================================
@@ -32,6 +39,7 @@ with left_col:
             st.subheader("1. Select File")
             uploaded_file = st.file_uploader("Upload File", label_visibility="collapsed")
             uploaded_file_name = uploaded_file.name.rsplit('.', 1)[0] if uploaded_file else None
+
 
             st.subheader("2. Select Language")
             language = st.selectbox("Language", list(config.LANGUAGES.keys()), index=8, label_visibility="collapsed")
@@ -104,15 +112,44 @@ with left_col:
                 elif not api_key:
                     st.error("Please enter an API Key.")
                 else:
-                    with st.spinner("Processing LLM..."):
-                        try:
-                            llm_manager = LLMManager(llm_model, api_key)
-                            st.session_state['working_df'] = llm_manager.create_translates(
-                                st.session_state['working_df'], language, translate_language, exclude_known_words_llm
-                            )
-                            st.success("LLM Complete!")
-                        except Exception as e:
-                            st.error(f"Process Error: {str(e)}")
+                    st.session_state['show_llm_confirm'] = True
+
+
+            if st.session_state['show_llm_confirm']:
+                llm_manager = LLMManager(llm_model, api_key)
+
+                llm_cost_message = llm_manager.estimate_cost(st.session_state['working_df'], exclude_known_words_llm)
+                st.warning(llm_cost_message)
+
+                col_confirm, col_cancel = st.columns(2)
+
+                with col_confirm:
+                    if st.button("Confirm", type="primary", use_container_width=True):
+                        st.session_state['process_llm'] = True
+                        st.session_state['show_llm_confirm'] = False
+                        st.rerun()
+
+                with col_cancel:
+                    if st.button("Cancel", use_container_width=True):
+                        st.session_state['process_llm'] = False
+                        st.session_state['show_llm_confirm'] = False
+                        st.rerun()
+
+
+            # Process LLM if user confirmed
+            if st.session_state['process_llm']:
+                with st.spinner("Processing LLM..."):
+                    try:
+                        llm_manager = LLMManager(llm_model, api_key)
+                        st.session_state['working_df'] = llm_manager.create_translates(
+                            st.session_state['working_df'], language, translate_language, exclude_known_words_llm
+                        )
+                        st.success("LLM Complete!")
+                    except Exception as e:
+                        st.error(f"Process Error: {str(e)}")
+                    finally:
+                        st.session_state['process_llm'] = False
+
 
         # ==========================================
         # ANALYSER TAB
@@ -149,6 +186,7 @@ with left_col:
                     },
                 )
 
+
         # ==========================================
         # SETTINGS TAB
         # ==========================================
@@ -162,6 +200,7 @@ with left_col:
                         st.session_state['working_df']['count'] > threshold
                     ]
                     st.rerun()
+
 
 # ==========================================
 # PREVIEW
