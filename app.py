@@ -43,7 +43,7 @@ with left_col:
 
             st.subheader("2. Select Language")
             language = st.selectbox("Language", list(config.LANGUAGES.keys()), index=8, label_visibility="collapsed")
-            include_articles = st.checkbox("Include Articles")
+            include_articles = st.checkbox("Include Articles", value=True)
 
 
             st.subheader("3. Select Known Words")
@@ -200,6 +200,11 @@ with left_col:
                         st.session_state['working_df']['count'] > threshold
                     ]
                     st.rerun()
+
+            st.divider()
+            if st.button("Reset Everything", type="primary"):
+                st.session_state.clear()
+                st.rerun()
 
 
 # ==========================================
