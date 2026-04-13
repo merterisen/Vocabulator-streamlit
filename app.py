@@ -89,7 +89,7 @@ with left_col:
             api_key = st.text_input("API Key", type="password", label_visibility="collapsed")
 
 
-            exclude_known_words = st.checkbox(
+            exclude_known_words_llm = st.checkbox(
                 "Exclude Known Words",
                 value=True,
                 help="Exclude words you already know from being sent to the LLM, to reduce token usage and API cost.",
@@ -108,7 +108,7 @@ with left_col:
                         try:
                             llm_manager = LLMManager(llm_model, api_key)
                             st.session_state['working_df'] = llm_manager.create_translates(
-                                st.session_state['working_df'], language, translate_language
+                                st.session_state['working_df'], language, translate_language, exclude_known_words_llm
                             )
                             st.success("LLM Complete!")
                         except Exception as e:
@@ -178,14 +178,15 @@ with right_col:
 
             st.write(f"Total words: {len(st.session_state['working_df'])}")
 
-            export_unknown = st.checkbox(
+            export_df = st.session_state['working_df']
+
+
+            exclude_known_words_export = st.checkbox(
                 "Exclude known words from export", 
                 value=False,
             )
 
-            export_df = st.session_state['working_df']
-
-            if export_unknown:
+            if exclude_known_words_export:
                 export_df = export_df[export_df["is_known"] == False].reset_index(drop=True)
 
             col1, col2 = st.columns([1, 1])

@@ -2,6 +2,7 @@ import json
 import math
 from openai import OpenAI
 import pandas as pd
+from config import LLM_BATCH_SIZE, LLM_MODELS
 
 class LLMManager:
     """
@@ -20,12 +21,15 @@ class LLMManager:
     # GLOBAL FUNCTIONS
     # =================================================================
 
-    def create_translates(self, input_df:pd.DataFrame, language:str, translate_language:str) -> pd.DataFrame:
+    def create_translates(self, input_df:pd.DataFrame, language:str, translate_language:str, exclude_known_words_llm:bool) -> pd.DataFrame:
         if input_df is None or input_df.empty:
             return input_df
 
-        words = input_df['word'].tolist()
-        batch_size = 20
+        if exclude_known_words_llm:
+            words = input_df[input_df['is_known'] == False]['word'].tolist()
+        else:
+            words = input_df['word'].tolist()
+        batch_size = LLM_BATCH_SIZE
         total_batches = math.ceil(len(words) / batch_size)        
         output_data = {}
 
@@ -40,7 +44,7 @@ class LLMManager:
                     output_data[word_key] = item
         
 
-        # Using apply to safely map, if a word failed -> eave fields empty
+        # Using apply to safely map, if a word failed -> leave fields empty
         output_df = input_df.copy()
         output_df['sentence'] = output_df['word'].apply(lambda x: output_data.get(x.lower().strip(), {}).get('sentence', ''))
         output_df['translate_word'] = output_df['word'].apply(lambda x: output_data.get(x.lower().strip(), {}).get('translate_word', ''))
@@ -48,6 +52,45 @@ class LLMManager:
         
         return output_df
                 
+
+    def estimate_cost(self, input_df: pd.DataFrame, exclude_known_words_llm: bool) -> str:
+        """
+        Estimate the cost of processing the input_df with the current LLM model.
+        Returns a formatted string with token count and estimated cost.
+        """
+
+        if exclude_known_words_llm:
+            words = input_df[input_df['is_known'] == False]['word'].tolist()
+        else:
+            words = input_df['word'].tolist()
+        
+        total_words = len(words)
+        batch_size = LLM_BATCH_SIZE
+        num_batches = math.ceil(total_words / batch_size)
+
+        # Heuristic Estimation
+        fixed_prompt_overhead = 250
+        per_word_input_tokens = 5
+
+        input_tokens = (num_batches * fixed_prompt_overhead) + (total_words * per_word_input_tokens)
+        output_tokens = total_words * 80  # ~80 tokens per word (JSON Structure + Sentence + Translation)
+
+        llm_model_config = LLM_MODELS.get(self.llm_model)
+        if not llm_model_config:
+            return f"Model {self.llm_model} not found in config. Cannot estimate cost."
+
+        input_price_per_1m = llm_model_config.get("input_price", 0)
+        output_price_per_1m = llm_model_config.get("output_price", 0)
+
+        estimated_cost = (input_tokens / 1_000_000 * input_price_per_1m) + (output_tokens / 1_000_000 * output_price_per_1m)
+
+        if estimated_cost < 0.01:
+            estimated_cost_text = "< $0.01"
+        else:
+            estimated_cost_text = f"~${estimated_cost:.2f}"
+        
+        total_tokens = input_tokens + output_tokens
+        return f"You are about to process ~{total_tokens} tokens using {self.llm_model}.\n\nEstimated Cost: {estimated_cost_text} USD\n"
 
 
     # =================================================================
