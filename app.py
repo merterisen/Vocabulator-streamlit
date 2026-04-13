@@ -31,7 +31,7 @@ with left_col:
         with nlp_tab:
             st.subheader("1. Select File")
             uploaded_file = st.file_uploader("Upload File", label_visibility="collapsed")
-
+            uploaded_file_name = uploaded_file.name.rsplit('.', 1)[0] if uploaded_file else None
 
             st.subheader("2. Select Language")
             language = st.selectbox("Language", list(config.LANGUAGES.keys()), index=8, label_visibility="collapsed")
@@ -170,26 +170,34 @@ with right_col:
     with st.container():
         # If working DF is not empty
         if st.session_state['working_df'] is not None and not st.session_state['working_df'].empty:
-            df = st.session_state['working_df']
-
             st.session_state['working_df'] = st.data_editor(
-                df,
+                st.session_state['working_df'],
                 key="preview_editor",
                 height=350
             )
 
-            st.write(f"Total words: {len(df)}")
+            st.write(f"Total words: {len(st.session_state['working_df'])}")
+
+            export_unknown = st.checkbox(
+                "Exclude known words from export", 
+                value=False,
+            )
+
+            export_df = st.session_state['working_df']
+
+            if export_unknown:
+                export_df = export_df[export_df["is_known"] == False].reset_index(drop=True)
 
             col1, col2 = st.columns([1, 1])
 
             with col1:
-                csv_data = st.session_state['working_df'].to_csv(index=False).encode('utf-8')
-                st.download_button(label="Export CSV", data=csv_data, file_name="vocabulator_export.csv", mime="text/csv")
+                csv_data = export_df.to_csv(index=False).encode("utf-8")
+                st.download_button(label="Export CSV", data=csv_data, file_name=uploaded_file_name+"_words.csv", mime="text/csv")
 
             with col2:
                 buffer = io.BytesIO()
-                st.session_state['working_df'].to_excel(buffer, index=False)
-                st.download_button(label="Export Excel", data=buffer.getvalue(), file_name="vocabulator_export.xlsx", mime="application/vnd.ms-excel")
+                export_df.to_excel(buffer, index=False)
+                st.download_button(label="Export Excel", data=buffer.getvalue(), file_name=uploaded_file_name+"_words.xlsx", mime="application/vnd.ms-excel")
         else:
             st.title("Welcome to Vocabulator")
 
