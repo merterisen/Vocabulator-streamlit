@@ -3,6 +3,7 @@ import config
 from managers.nlp_manager import NLPManager
 from managers.file_manager import FileManager
 from managers.llm_manager import LLMManager
+from managers.anki_manager import AnkiManager
 import io
 
 st.set_page_config(page_title=config.WINDOW_TITLE, layout="wide")
@@ -227,13 +228,13 @@ with right_col:
 
             exclude_known_words_export = st.checkbox(
                 "Exclude known words from export", 
-                value=False,
+                value=True,
             )
 
             if exclude_known_words_export:
                 export_df = export_df[export_df["is_known"] == False].reset_index(drop=True)
 
-            col1, col2 = st.columns([1, 1])
+            col1, col2, col3 = st.columns([1, 1, 1])
 
             with col1:
                 csv_data = export_df.to_csv(index=False).encode("utf-8")
@@ -243,6 +244,12 @@ with right_col:
                 buffer = io.BytesIO()
                 export_df.to_excel(buffer, index=False)
                 st.download_button(label="Export Excel", data=buffer.getvalue(), file_name=uploaded_file_name+"_words.xlsx", mime="application/vnd.ms-excel")
+                
+            with col3:
+                anki_manager = AnkiManager(deck_name=f"{uploaded_file_name} Deck")
+                apkg_data = anki_manager.generate_apkg(export_df)
+                st.download_button(label="Export Anki", data=apkg_data, file_name=f"{uploaded_file_name}_deck.apkg", mime="application/octet-stream")
+        
         else:
             st.title("Welcome to Vocabulator")
 
