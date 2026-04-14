@@ -1,8 +1,18 @@
-import json
 import math
 from openai import OpenAI
 import pandas as pd
+from typing import List
+from pydantic import BaseModel, Field
 from config import LLM_BATCH_SIZE, LLM_MODELS
+
+class TranslationItem(BaseModel):
+    word: str = Field(description="The original word")
+    sentence: str = Field(description="Example sentence in source language")
+    translate_word: str = Field(description="Translated word")
+    translate_sentence: str = Field(description="Translated sentence")
+
+class TranslationResponse(BaseModel):
+    items: List[TranslationItem] = Field(description="List of translations for the requested words")
 
 class LLMManager:
     """
@@ -35,13 +45,18 @@ class LLMManager:
 
         for i in range(total_batches):
             words_to_send_llm = words[i*batch_size : (i+1)*batch_size]
-        
-            client_output = self._send_to_llm(words_to_send_llm, language, translate_language)
 
-            for item in client_output:
-                word_key = item.get("word", "").lower().strip()
-                if word_key:
-                    output_data[word_key] = item
+            # Error handling step to prevent the app from crashing while processing a batch
+            try:
+                client_output = self._send_to_llm(words_to_send_llm, language, translate_language)
+
+                for item in client_output:
+                    word_key = item.get("word", "").lower().strip()
+                    if word_key:
+                        output_data[word_key] = item
+            except Exception as e:
+                print(f"Error processing batch {i} for words {words_to_send_llm}: {e}")
+                continue
         
 
         # Using apply to safely map, if a word failed -> leave fields empty
@@ -111,34 +126,18 @@ class LLMManager:
         1. An example sentence in the Source Language ({language}) containing the word.
         2. The translation of the word in the Target Language ({translate_language}).
         3. The translation of the example sentence in the Target Language ({translate_language}).
-
-        Return ONLY a raw JSON array of objects. Do not include markdown formatting (```json).
-        JSON Format:
-        [
-            {{
-                "word": "original_word",
-                "sentence": "Example sentence in source language.",
-                "translate_word": "Translated word",
-                "translate_sentence": "Translated sentence."
-            }}
-        ]
         """
-        
 
-        response = self.client.chat.completions.create(
+        response = self.client.beta.chat.completions.parse(
             model = self.llm_model,
             messages=[
-                {"role": "system", "content": "You are a helpful dictionary assistant that outputs strict JSON."},
+                {"role": "system", "content": "You are a helpful dictionary assistant."},
                 {"role": "user", "content": prompt}
             ],
+            response_format=TranslationResponse,
         )
 
-        content = response.choices[0].message.content.strip()
-
-        # Clean potential markdown code blocks if the model ignores instructions
-        if content.startswith("```json"):
-            content = content[7:]
-        if content.endswith("```"):
-            content = content[:-3]
-            
-        return json.loads(content)
+        parsed_response = response.choices[0].message.parsed
+        if parsed_response:
+            return [item.model_dump() for item in parsed_response.items]
+        return []
