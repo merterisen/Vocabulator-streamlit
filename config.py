@@ -11,9 +11,9 @@ LLM_BATCH_SIZE = 20
 LLM_MODELS = {
     # OPENAI
     "gpt-5.4": {"model": "gpt-5.4", "type": "openai", "input_price": 2.50, "output_price": 15.00},
+    "gpt-5.1": {"model": "gpt-5.1", "type": "openai", "input_price": 1.25, "output_price": 10.00},
     "gpt-5.4-mini": {"model": "gpt-5.4-mini", "type": "openai", "input_price": 0.75, "output_price": 4.00},
     "gpt-5.4-nano": {"model": "gpt-5.4-nano", "type": "openai", "input_price": 0.20, "output_price": 1.25},
-    "gpt-5.1": {"model": "gpt-5.1", "type": "openai", "input_price": 1.25, "output_price": 10.00},
     "gpt-5-nano": {"model": "gpt-5-nano", "type": "openai", "input_price": 0.05, "output_price": 0.4},
 }
 
