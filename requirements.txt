@@ -49,6 +49,7 @@ mk_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/mk
 murmurhash==1.0.15
 narwhals==2.19.0
 nb_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/nb_core_news_sm-3.8.0/nb_core_news_sm-3.8.0-py3-none-any.whl#sha256=086f2cfcc1568b2ee49a2ab297f7910f2645ae6892f2d5d15d8b077f5d0bd773
+nest-asyncio==1.6.0
 nl_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_sm-3.8.0/nl_core_news_sm-3.8.0-py3-none-any.whl#sha256=a76978477821f213ca76a46c686df1b1d41462905d4868bc53eac086adca8b7e
 numpy==2.4.4
 openai==2.30.0

@@ -1,4 +1,5 @@
 import math
+import concurrent.futures
 from openai import OpenAI
 import pandas as pd
 from typing import List
@@ -22,9 +23,10 @@ class LLMManager:
         - translate_sentence
     """
 
-    def __init__(self, llm_model, api_key):
+    def __init__(self, llm_model, api_key, llm_workers):
         self.llm_model = llm_model
         self.client = OpenAI(api_key=api_key)
+        self.llm_workers = llm_workers
     
 
     # =================================================================
@@ -43,20 +45,27 @@ class LLMManager:
         total_batches = math.ceil(len(words) / batch_size)        
         output_data = {}
 
-        for i in range(total_batches):
-            words_to_send_llm = words[i*batch_size : (i+1)*batch_size]
+        batches = [words[i*batch_size : (i+1)*batch_size] for i in range(total_batches)]
 
-            # Error handling step to prevent the app from crashing while processing a batch
+        def process_batch(batch_idx, words_to_send_llm):
             try:
                 client_output = self._send_to_llm(words_to_send_llm, language, translate_language)
-
-                for item in client_output:
-                    word_key = item.get("word", "").lower().strip()
-                    if word_key:
-                        output_data[word_key] = item
+                return batch_idx, words_to_send_llm, client_output, None
             except Exception as e:
-                print(f"Error processing batch {i} for words {words_to_send_llm}: {e}")
-                continue
+                return batch_idx, words_to_send_llm, None, e
+
+        # Using parallel workers to speed up without hitting rate limits too quickly
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.llm_workers) as executor:
+            futures = [executor.submit(process_batch, i, batch) for i, batch in enumerate(batches)]
+            for future in concurrent.futures.as_completed(futures):
+                batch_idx, words_to_send_llm, client_output, error = future.result()
+                if error:
+                    print(f"Error processing batch {batch_idx} for words {words_to_send_llm}: {error}")
+                elif client_output:
+                    for item in client_output:
+                        word_key = item.get("word", "").lower().strip()
+                        if word_key:
+                            output_data[word_key] = item
         
 
         # Using apply to safely map, if a word failed -> leave fields empty

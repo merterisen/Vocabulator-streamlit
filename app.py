@@ -30,7 +30,7 @@ left_col, right_col = st.columns([1, 1.4], gap="large")
 # ==========================================
 with left_col:
     with st.container():
-        nlp_tab, llm_tab, analyser_tab, settings_tab = st.tabs(["NLP", "LLM", "ANALYSER", "SETTINGS"])
+        nlp_tab, llm_tab, analyse_tab, settings_tab = st.tabs(["NLP", "LLM", "ANALYSE", "SETTINGS"])
 
 
         # ==========================================
@@ -87,7 +87,7 @@ with left_col:
         # ==========================================
         with llm_tab:
             st.subheader("1. Select LLM Model")
-            llm_model = st.selectbox("LLM Model", list(config.LLM_MODELS.keys()), index=2, label_visibility="collapsed")
+            llm_model = st.selectbox("LLM Model", list(config.LLM_MODELS.keys()), index=len(config.LLM_MODELS)-1, label_visibility="collapsed")
 
 
             st.subheader("2. Enter Translate Language")
@@ -98,8 +98,19 @@ with left_col:
             api_key = st.text_input("API Key", type="password", label_visibility="collapsed")
 
 
+            st.subheader("4. Select LLM Workers")
+            st.caption("Number of parallel workers for LLM requests. Higher values are faster but may hit rate limits.")
+            llm_workers = st.number_input(
+                "LLM Workers",
+                min_value=1,
+                value=1,
+                step=1,
+                label_visibility="collapsed",
+            )
+
+
             exclude_known_words_llm = st.checkbox(
-                "Exclude Known Words",
+                "Exclude known words from LLM",
                 value=True,
                 help="Exclude words you already know from being sent to the LLM, to reduce token usage and API cost.",
             )
@@ -117,9 +128,7 @@ with left_col:
 
 
             if st.session_state['show_llm_confirm']:
-                llm_manager = LLMManager(llm_model, api_key)
-
-                llm_cost_message = llm_manager.estimate_cost(st.session_state['working_df'], exclude_known_words_llm)
+                llm_cost_message = LLMManager(llm_model, api_key, llm_workers).estimate_cost(st.session_state['working_df'], exclude_known_words_llm)
                 st.warning(llm_cost_message)
 
                 col_confirm, col_cancel = st.columns(2)
@@ -141,7 +150,7 @@ with left_col:
             if st.session_state['process_llm']:
                 with st.spinner("Processing LLM..."):
                     try:
-                        llm_manager = LLMManager(llm_model, api_key)
+                        llm_manager = LLMManager(llm_model, api_key, llm_workers)
                         st.session_state['working_df'] = llm_manager.create_translates(
                             st.session_state['working_df'], language, translate_language, exclude_known_words_llm
                         )
@@ -155,7 +164,7 @@ with left_col:
         # ==========================================
         # ANALYSER TAB
         # ==========================================
-        with analyser_tab:
+        with analyse_tab:
             if st.session_state['source_df'] is None or st.session_state['source_df'].empty:
                 st.info("No analysis data yet. Run NLP first.")
             else:
@@ -192,13 +201,15 @@ with left_col:
         # SETTINGS TAB
         # ==========================================
         with settings_tab:
-            threshold = st.number_input("Remove words with count smaller equal than <=", min_value=0, value=0)
+            lower_threshold = st.number_input("Remove words with count smaller equal than <=", min_value=0, value=0)
+            upper_threshold = st.number_input("Remove words with count greater than =>", min_value=0, value=999999)
             if st.button("Remove Words"):
                 if st.session_state['working_df'] is None or st.session_state['working_df'].empty:
                     st.warning("No words found. Please run NLP first.")
                 else:
                     st.session_state['working_df'] = st.session_state['working_df'][
-                        st.session_state['working_df']['count'] > threshold
+                        st.session_state['working_df']['count'] > lower_threshold
+                        & st.session_state['working_df']['count'] < upper_threshold
                     ]
                     st.rerun()
 
